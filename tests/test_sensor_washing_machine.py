@@ -18,7 +18,9 @@ from custom_components.candy import (
     SCAN_INTERVAL_ACTIVE,
     SCAN_INTERVAL_RESTING,
 )
+from custom_components.candy.client.model import DownloadableProgram
 from custom_components.candy.const import (
+    CONF_KEY_DOWNLOADABLE_PROGRAMS,
     CONF_KEY_IS_WASHING_MACHINE,
     CONF_KEY_MAINTENANCE_ENABLED,
     CONF_KEY_MAINTENANCE_LAST_FILTER,
@@ -76,6 +78,164 @@ async def test_program_sensor_idle(
         "friendly_name": "Wash program",
         "icon": "mdi:washing-machine",
     }
+
+
+_TEST_PROGRAMS = [
+    {
+        "program": {
+            "position": 1,
+            "name": "DUAL_WM_WD_PROGRAM_NAME_RESISTANT_COTTONS",
+            "command_parameters": [
+                {"command_parameter": {"name": "selector_position", "validation": "1"}},
+                {"command_parameter": {"name": "pr_code", "validation": "136"}},
+            ],
+        }
+    },
+    {
+        "program": {
+            "position": 2,
+            "name": "DUAL_WM_WD_PROGRAM_NAME_RAPID_30_MIN",
+            "command_parameters": [
+                {"command_parameter": {"name": "selector_position", "validation": "2"}},
+                {"command_parameter": {"name": "pr_code", "validation": "5"}},
+            ],
+        }
+    },
+]
+
+_TEST_NFC_NEW_CLOTHES = DownloadableProgram(
+    position=33,
+    name="DUAL_WM_WD_PROGRAM_DOWNLOAD_NAME_NEW_CLOTHES",
+    parent=6,
+    temperature=20,
+    spin_speed=1000,
+    soil_level=0,
+    options=0,
+    steam=0,
+    translations={"en": "New Clothes"},
+    category_translations={"en": "Special"},
+    description_translations={"en": "Wash new clothes."},
+)
+
+
+async def test_program_sensor_standard_program(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+):
+    """Test wash program sensor displaying standard program name when RecipeId is 0."""
+    status_payload = (
+        load_fixture("washing_machine/idle.json")
+        .replace('"Pr": "1"', '"Pr": "2"')
+        .replace('"RecipeId": "0"', '"RecipeId": "0"')
+    )
+    with patch(
+        "custom_components.candy.sensor.load_downloadable_programs",
+        return_value=[_TEST_NFC_NEW_CLOTHES],
+    ):
+        await init_integration(
+            hass,
+            aioclient_mock,
+            status_payload,
+            statistics_response='{"statusCounters": {"Program1": "10"}}',
+            extra_config_data={
+                CONF_KEY_PROGRAMS: _TEST_PROGRAMS,
+                CONF_KEY_DOWNLOADABLE_PROGRAMS: [],
+            },
+        )
+
+    state = hass.states.get("sensor.wash_program")
+    assert state
+    assert state.state == "Rapid 30 Min."
+    assert state.attributes.get("recipe_id") is None
+
+
+async def test_program_sensor_special_program(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+):
+    """Test wash program sensor displaying downloadable program name when RecipeId is D_33."""
+    status_payload = (
+        load_fixture("washing_machine/idle.json")
+        .replace('"Pr": "1"', '"Pr": "2"')
+        .replace('"RecipeId": "0"', '"RecipeId": "D_33"')
+    )
+    with patch(
+        "custom_components.candy.sensor.load_downloadable_programs",
+        return_value=[_TEST_NFC_NEW_CLOTHES],
+    ):
+        await init_integration(
+            hass,
+            aioclient_mock,
+            status_payload,
+            statistics_response='{"statusCounters": {"Program1": "10"}}',
+            extra_config_data={
+                CONF_KEY_PROGRAMS: _TEST_PROGRAMS,
+                CONF_KEY_DOWNLOADABLE_PROGRAMS: [],
+            },
+        )
+
+    state = hass.states.get("sensor.wash_program")
+    assert state
+    assert state.state == "New Clothes"
+    assert state.attributes["recipe_id"] == "D_33"
+
+
+async def test_program_sensor_special_program_numeric_recipe_id(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+):
+    """Test wash program sensor matching downloadable program with numeric string RecipeId."""
+    status_payload = (
+        load_fixture("washing_machine/idle.json")
+        .replace('"Pr": "1"', '"Pr": "2"')
+        .replace('"RecipeId": "0"', '"RecipeId": "33"')
+    )
+    with patch(
+        "custom_components.candy.sensor.load_downloadable_programs",
+        return_value=[_TEST_NFC_NEW_CLOTHES],
+    ):
+        await init_integration(
+            hass,
+            aioclient_mock,
+            status_payload,
+            statistics_response='{"statusCounters": {"Program1": "10"}}',
+            extra_config_data={
+                CONF_KEY_PROGRAMS: _TEST_PROGRAMS,
+                CONF_KEY_DOWNLOADABLE_PROGRAMS: [],
+            },
+        )
+
+    state = hass.states.get("sensor.wash_program")
+    assert state
+    assert state.state == "New Clothes"
+    assert state.attributes["recipe_id"] == "33"
+
+
+async def test_program_sensor_special_program_unknown_recipe_id_fallback(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+):
+    """Test fallback to standard base program when RecipeId is not in downloadable catalog."""
+    status_payload = (
+        load_fixture("washing_machine/idle.json")
+        .replace('"Pr": "1"', '"Pr": "2"')
+        .replace('"RecipeId": "0"', '"RecipeId": "D_999"')
+    )
+    with patch(
+        "custom_components.candy.sensor.load_downloadable_programs",
+        return_value=[_TEST_NFC_NEW_CLOTHES],
+    ):
+        await init_integration(
+            hass,
+            aioclient_mock,
+            status_payload,
+            statistics_response='{"statusCounters": {"Program1": "10"}}',
+            extra_config_data={
+                CONF_KEY_PROGRAMS: _TEST_PROGRAMS,
+                CONF_KEY_DOWNLOADABLE_PROGRAMS: [],
+            },
+        )
+
+    state = hass.states.get("sensor.wash_program")
+    assert state
+    assert state.state == "Rapid 30 Min."
+    assert state.attributes["recipe_id"] == "D_999"
 
 
 async def test_cycle_sensor_idle(

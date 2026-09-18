@@ -1257,7 +1257,7 @@ async def test_start_button_sends_nfc_command(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ):
     # Bathrobe: position=56, parent=1 → Output 1 → base=RESISTANT_COTTONS (PrCode=136)
-    # PrNm=56 (nfc.position), temp=40, spin_speed=1000 → SpdTgt=10, soil_level=2 → SLevTgt=2, options=16, Stm=0
+    # PrNm=1 (base.selector_position), temp=40, spin_speed=1000 → SpdTgt=10, soil_level=2 → SLevTgt=2, options=16, Stm=0
     entry = await _init_full_control_nfc(hass, aioclient_mock, _IDLE_JSON)
     registry = er.async_get(hass)
 
@@ -1286,7 +1286,10 @@ async def test_start_button_sends_nfc_command(
     qs: str = mock_send.call_args[0][0]
     assert "Write=1" in qs
     assert "StSt=1" in qs
-    assert "PrNm=56" in qs  # nfc.position
+    # PrNm MUST be the parent base program's selector_position (dial 1..16), NOT nfc.position (56).
+    # Sending nfc.position causes the machine to reject the command with hardware fault E15.
+    assert "PrNm=1" in qs
+    assert f"PrNm={_NFC_BATHROBE.position}" not in qs
     assert "PrCode=136" in qs  # COTTON pr_code
     assert "PrStr=Bathrobe" in qs
     assert "TmpTgt=40" in qs
@@ -1301,7 +1304,7 @@ async def test_start_button_nfc_zero_soil_level_sent_directly(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ):
     # New Clothes: position=33, parent=6 → base=RAPID_30_MIN (PrCode=5)
-    # PrNm=33 (nfc.position), soil_level=0 → sent as SLevTgt=0 (no fallback)
+    # PrNm=2 (base.selector_position), soil_level=0 → sent as SLevTgt=0 (no fallback)
     entry = await _init_full_control_nfc(hass, aioclient_mock, _IDLE_JSON)
     registry = er.async_get(hass)
 
@@ -1327,7 +1330,8 @@ async def test_start_button_nfc_zero_soil_level_sent_directly(
         )
 
     qs: str = mock_send.call_args[0][0]
-    assert "PrNm=33" in qs  # nfc.position
+    assert "PrNm=2" in qs
+    assert f"PrNm={_NFC_NEW_CLOTHES.position}" not in qs
     assert "PrCode=5" in qs
     assert "PrStr=New%20Clothes" in qs
     assert "TmpTgt=20" in qs

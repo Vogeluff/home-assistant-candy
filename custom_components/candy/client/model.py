@@ -97,6 +97,7 @@ class WashingMachineStatus:
     fault_count: int | None  # numF — total fault count
     dis_test_res: CheckUpResult | None  # DisTestRes — result of last diagnostic
     soil_level: int | None  # SLevel — 0–4 soil level setting
+    recipe_id: str | None  # RecipeId — downloadable program (e.g. "D_33")
 
     @classmethod
     def from_json(cls, json):
@@ -123,6 +124,9 @@ class WashingMachineStatus:
             if "DisTestRes" in json
             else None,
             soil_level=int(json["SLevel"]) if "SLevel" in json else None,
+            recipe_id=str(json["RecipeId"]).strip()
+            if json.get("RecipeId") is not None
+            else None,
         )
 
 

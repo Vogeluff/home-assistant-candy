@@ -50,6 +50,7 @@ def _make_wm_status(state: MachineState) -> WashingMachineStatus:
         fault_count=None,
         dis_test_res=None,
         soil_level=None,
+        recipe_id=None,
     )
 
 

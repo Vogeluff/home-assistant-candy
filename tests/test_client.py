@@ -51,6 +51,7 @@ async def test_idle(hass, aioclient_mock):
     assert status.program_state is WashProgramState.STOPPED
     assert status.spin_speed == 800
     assert status.temp == 40
+    assert status.recipe_id == "0"
 
 
 async def test_delayed_start_wait(hass, aioclient_mock):
@@ -364,3 +365,22 @@ async def test_set_wine_cooler_light_encrypted(hass, aioclient_mock):
 
     await client.set_wine_cooler_light(True, status)
     assert aioclient_mock.call_count == 1
+
+
+async def test_special_program_recipe_id(hass, aioclient_mock):
+    """Test parsing RecipeId for a special/downloadable program."""
+    aioclient_mock.get(
+        f"http://{TEST_IP}/http-read.json",
+        text=load_fixture("washing_machine/idle.json").replace(
+            '"RecipeId": "0"', '"RecipeId": "D_33"'
+        ),
+    )
+    client = CandyClient(
+        async_get_clientsession(hass),
+        device_ip=TEST_IP,
+        encryption_key=TEST_ENCRYPTION_KEY_EMPTY,
+        use_encryption=False,
+    )
+    status = await client.status()
+    assert isinstance(status, WashingMachineStatus)
+    assert status.recipe_id == "D_33"

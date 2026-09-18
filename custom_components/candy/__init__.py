@@ -233,6 +233,7 @@ def _offline_washing_machine() -> WashingMachineStatus:
         fault_count=None,
         dis_test_res=None,
         soil_level=None,
+        recipe_id=None,
     )
 
 
