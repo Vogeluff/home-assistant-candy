@@ -38,6 +38,7 @@ from custom_components.candy.const import (
     UNIQUE_ID_WASH_OPTION_PREWASH,
     UNIQUE_ID_WASH_OPTION_RINSE_1,
     UNIQUE_ID_WASH_PAUSE_BUTTON,
+    UNIQUE_ID_WASH_PROGRAM_DESCRIPTION,
     UNIQUE_ID_WASH_PROGRAM_SELECT,
     UNIQUE_ID_WASH_SCHEDULED_FINISH,
     UNIQUE_ID_WASH_SCHEDULED_START,
@@ -1146,6 +1147,77 @@ async def test_nfc_program_options_appear_in_select(
     # NFC programs appended with category prefix
     assert "Home Care - Bathrobe" in options
     assert "Special - New Clothes" in options
+
+
+async def test_nfc_description_sensor_seeded_from_running_special_program(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+):
+    """Test description sensor seeds downloadable program description from RecipeId."""
+    running_special = _IDLE_JSON.replace(
+        '"CheckUpState": "0"', '"CheckUpState": "0", "RecipeId": "D_33"'
+    )
+    entry = await _init_full_control_nfc(hass, aioclient_mock, running_special)
+    state = _state(hass, entry, "select", UNIQUE_ID_WASH_PROGRAM_DESCRIPTION)
+    assert state is not None
+    assert state.state == "Wash new clothes."
+
+
+async def test_nfc_description_sensor_seeded_from_numeric_recipe_id(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+):
+    """Test description sensor seeds from numeric RecipeId string."""
+    running_special = _IDLE_JSON.replace(
+        '"CheckUpState": "0"', '"CheckUpState": "0", "RecipeId": "56"'
+    )
+    entry = await _init_full_control_nfc(hass, aioclient_mock, running_special)
+    state = _state(hass, entry, "select", UNIQUE_ID_WASH_PROGRAM_DESCRIPTION)
+    assert state is not None
+    assert state.state == "Wash your bathrobe."
+
+
+async def test_nfc_description_sensor_seeded_fallback_unknown_recipe_id(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+):
+    """Test description sensor falls back to standard program for unknown RecipeId."""
+    running_special = _IDLE_JSON.replace(
+        '"CheckUpState": "0"', '"CheckUpState": "0", "RecipeId": "D_999"'
+    )
+    entry = await _init_full_control_nfc(hass, aioclient_mock, running_special)
+    state = _state(hass, entry, "select", UNIQUE_ID_WASH_PROGRAM_DESCRIPTION)
+    assert state is not None
+    assert state.state.startswith("This programme is developed")
+
+
+async def test_nfc_description_sensor_updated_on_select(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+):
+    """Test description sensor updates when selecting an NFC program in dropdown."""
+    entry = await _init_full_control_nfc(hass, aioclient_mock, _IDLE_JSON)
+    registry = er.async_get(hass)
+    program_eid = registry.async_get_entity_id(
+        "select", DOMAIN, UNIQUE_ID_WASH_PROGRAM_SELECT.format(entry.entry_id)
+    )
+    assert program_eid is not None
+
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {"entity_id": program_eid, "option": "Home Care - Bathrobe"},
+        blocking=True,
+    )
+    state = _state(hass, entry, "select", UNIQUE_ID_WASH_PROGRAM_DESCRIPTION)
+    assert state is not None
+    assert state.state == "Wash your bathrobe."
+
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {"entity_id": program_eid, "option": "Whites"},
+        blocking=True,
+    )
+    state = _state(hass, entry, "select", UNIQUE_ID_WASH_PROGRAM_DESCRIPTION)
+    assert state is not None
+    assert state.state.startswith("This programme is developed")
 
 
 async def test_nfc_program_options_absent_when_toggle_off(
