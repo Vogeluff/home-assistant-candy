@@ -335,7 +335,7 @@ class WashStartButton(CandyWashButtonBase):
                 "Write": 1,
                 "StSt": 1,
                 "DelVl": delay // 30,
-                "PrNm": nfc.position,
+                "PrNm": base.selector_position,
                 "PrCode": base.pr_code,
                 "PrStr": nfc.display_name(lang),
                 "TmpTgt": nfc.temperature,

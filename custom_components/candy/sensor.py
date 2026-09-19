@@ -396,6 +396,18 @@ class CandyWashProgramSensor(CandyBaseSensor):
         lang = self.config_entry.data.get(
             CONF_KEY_PROGRAM_LANGUAGE, self.hass.config.language
         )
+        if status.recipe_id and status.recipe_id not in ("0", ""):
+            dl_match = next(
+                (
+                    p
+                    for p in self._dl_programs
+                    if p.recipe_id == status.recipe_id
+                    or str(p.position) == status.recipe_id
+                ),
+                None,
+            )
+            if dl_match is not None:
+                return dl_match.display_name(lang)
         match = next(
             (p for p in self._programs if p.selector_position == status.program),
             None,
@@ -412,9 +424,12 @@ class CandyWashProgramSensor(CandyBaseSensor):
     @property
     def extra_state_attributes(self) -> Mapping[str, Any]:
         status = cast(WashingMachineStatus, self.coordinator.data)
+        attrs: dict[str, Any] = {}
         if status.program_code is not None:
-            return {"program_code": status.program_code}
-        return {}
+            attrs["program_code"] = status.program_code
+        if status.recipe_id and status.recipe_id not in ("0", ""):
+            attrs["recipe_id"] = status.recipe_id
+        return attrs
 
     @property
     def icon(self) -> str:

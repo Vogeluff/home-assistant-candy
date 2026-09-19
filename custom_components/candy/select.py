@@ -305,6 +305,17 @@ class CandyWashProgramDescriptionSensor(CoordinatorEntity, SensorEntity):
             return
         status = cast(WashingMachineStatus, self.coordinator.data)
         lang = self.config_entry.data.get(CONF_KEY_PROGRAM_LANGUAGE, "en")
+        if status.recipe_id and status.recipe_id not in ("0", ""):
+            dl_programs = load_downloadable_programs(
+                self.config_entry.data.get(CONF_KEY_DOWNLOADABLE_PROGRAMS, [])
+            )
+            for dl in dl_programs:
+                if (
+                    dl.recipe_id == status.recipe_id
+                    or str(dl.position) == status.recipe_id
+                ):
+                    self._description = self._truncate(dl.description(lang))
+                    return
         programs = parse_wash_programs(
             self.config_entry.data.get(CONF_KEY_PROGRAMS, [])
         )
