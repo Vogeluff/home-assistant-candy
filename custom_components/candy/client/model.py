@@ -288,6 +288,7 @@ class WashingMachineWashProgram:
     powder_detergent_dose: int | None  # 1–4 dose level, or None if not applicable
     max_cycle_capacity: int | None  # kg
     available_options: int  # OptMsk1 bitmask of valid options for this program
+    selector_position_dry: int | None  # program accepts an attached drying phase if set
 
     @classmethod
     def from_dict(cls, program_dict: dict) -> "WashingMachineWashProgram":
@@ -342,6 +343,7 @@ class WashingMachineWashProgram:
             powder_detergent_dose=_int_or_none("powder_detergent_dose"),
             max_cycle_capacity=_int_or_none("max_cycle_capacity"),
             available_options=_int("available_options"),
+            selector_position_dry=_int_or_none("selector_position_dry"),
         )
 
     @property
