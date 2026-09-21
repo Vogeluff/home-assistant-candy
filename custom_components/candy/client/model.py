@@ -98,6 +98,7 @@ class WashingMachineStatus:
     dis_test_res: CheckUpResult | None  # DisTestRes — result of last diagnostic
     soil_level: int | None  # SLevel — 0–4 soil level setting
     recipe_id: str | None  # RecipeId — downloadable program (e.g. "D_33")
+    dry_type: int | None  # DryT — attached drying-phase option index, 0 if none
 
     @classmethod
     def from_json(cls, json):
@@ -127,6 +128,7 @@ class WashingMachineStatus:
             recipe_id=str(json["RecipeId"]).strip()
             if json.get("RecipeId") is not None
             else None,
+            dry_type=int(json["DryT"]) if "DryT" in json else None,
         )
 
 
